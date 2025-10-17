@@ -1,0 +1,6 @@
+{
+  "dependencies": {
+    "@neondatabase/serverless": "^0.9.1",
+    "web-push": "^3.6.7"
+  }
+}
