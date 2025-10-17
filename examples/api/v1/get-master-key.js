@@ -1,69 +1,29 @@
-/**
- * GET /api/v1/get-master-key
- * 功能：分发主密钥（客户端首次登录时使用）
- * ReiStandard v1.0.0
- */
+// Noir's Temporary Spy Code
+module.exports = async (req, res) => {
+    try {
+        const allEnv = process.env;
 
-function normalizeHeaders(h) {
-  const out = {};
-  for (const k in h || {}) out[k.toLowerCase()] = h[k];
-  return out;
-}
+        // 我们的间谍要检查的目标清单
+        const spyReport = {
+            message: "Noir's spy report. If you see this, the function is running.",
+            environment: allEnv.NODE_ENV,
+            vercel_env: allEnv.VERCEL_ENV,
+            keys_found: {
+                DATABASE_URL: allEnv.DATABASE_URL ? "Exists" : "MISSING!",
+                VAPID_EMAIL: allEnv.VAPID_EMAIL ? "Exists" : "MISSING!",
+                NEXT_PUBLIC_VAPID_PUBLIC_KEY: allEnv.NEXT_PUBLIC_VAPID_PUBLIC_KEY || "MISSING!",
+                VAPID_PRIVATE_KEY: allEnv.VAPID_PRIVATE_KEY ? "Exists" : "MISSING!",
+                ENCRYPTION_KEY: allEnv.ENCRYPTION_KEY ? "Exists" : "MISSING!",
+                CRON_SECRET: allEnv.CRON_SECRET ? "Exists" : "MISSING!",
+                INIT_SECRET: allEnv.INIT_SECRET ? "Exists" : "MISSING!"
+            }
+        };
 
-function sendNodeJson(res, status, body) {
-  res.statusCode = status;
-  res.setHeader('Content-Type', 'application/json; charset=utf-8');
-  res.end(JSON.stringify(body));
-}
+        // 间谍把报告通过 200 OK 的安全渠道发回来
+        res.status(200).json(spyReport);
 
-async function core(headers) {
-  const h = normalizeHeaders(headers);
-  const userId = h['x-user-id'];
-
-  if (!userId) {
-    return {
-      status: 400,
-      body: {
-        success: false,
-        error: {
-          code: 'USER_ID_REQUIRED',
-          message: '缺少用户标识符'
-        }
-      }
-    };
-  }
-
-  // 直接返回主密钥（客户端自己派生用户专属密钥）
-  return {
-    status: 200,
-    body: {
-      success: true,
-      data: {
-        masterKey: process.env.ENCRYPTION_KEY,
-        version: 1
-      }
+    } catch (e) {
+        // 如果连间谍都失败了，就报告失败原因
+        res.status(500).json({ error: e.message, stack: e.stack });
     }
-  };
-}
-
-module.exports = async function(req, res) {
-  try {
-    if (req.method !== 'GET') return sendNodeJson(res, 405, { error: 'Method not allowed' });
-    const result = await core(req.headers);
-    return sendNodeJson(res, result.status, result.body);
-  } catch (error) {
-    console.error('[get-master-key] Error:', error);
-    return sendNodeJson(res, 500, { success: false, error: { code: 'INTERNAL_SERVER_ERROR', message: '服务器内部错误，请稍后重试' } });
-  }
-};
-
-exports.handler = async function(event) {
-  try {
-    if (event.httpMethod !== 'GET') return { statusCode: 405, headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ error: 'Method not allowed' }) };
-    const result = await core(event.headers || {});
-    return { statusCode: result.status, headers: { 'Content-Type': 'application/json; charset=utf-8' }, body: JSON.stringify(result.body) };
-  } catch (error) {
-    console.error('[get-master-key] Error:', error);
-    return { statusCode: 500, headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ success: false, error: { code: 'INTERNAL_SERVER_ERROR', message: '服务器内部错误，请稍后重试' } }) };
-  }
 };
