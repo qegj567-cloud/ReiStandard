@@ -1,0 +1,37 @@
+{
+  "version": 2,
+  "name": "active-messaging-test",
+  "description": "主动消息 API 测试端点",
+
+  "functions": {
+    "api/test-active-messaging.js": {
+      "maxDuration": 300
+    }
+  },
+
+  "env": {
+    "NODE_ENV": "production",
+    "API_BASE_URL": "https://your-actual-api-domain.vercel.app",
+    "TEST_USER_ID": "test_user_vercel",
+    "ENCRYPTION_KEY": "@encryption-key",
+    "CRON_SECRET": "@cron-secret",
+    "INIT_SECRET": "@init-secret",
+    "VERCEL_PROTECTION_BYPASS": "@vercel-bypass-key"
+  },
+
+  "headers": [
+    {
+      "source": "/api/test-active-messaging",
+      "headers": [
+        {
+          "key": "Cache-Control",
+          "value": "no-cache, no-store, must-revalidate"
+        },
+        {
+          "key": "X-Content-Type-Options",
+          "value": "nosniff"
+        }
+      ]
+    }
+  ]
+}

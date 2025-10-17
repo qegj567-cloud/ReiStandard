@@ -1,0 +1,8 @@
+ref
+
+# 测试配置文件
+.env.test
+.env.test.local
+
+# Node.js
+node_modules/
