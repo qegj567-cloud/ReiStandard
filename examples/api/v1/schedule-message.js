@@ -3,6 +3,7 @@
  * 功能：创建定时消息任务（CommonJS，兼容 Vercel 与 Netlify）
  * ReiStandard v1.0.0
  */
+ const { sql } = require('@vercel/postgres'); // 确保这行在文件顶部
 
 const { deriveUserEncryptionKey, decryptPayload, encryptForStorage } = require('../../lib/encryption');
 const { validateScheduleMessagePayload } = require('../../lib/validation');
@@ -147,86 +148,55 @@ async function core(headers, body) {
   const taskUuid = payload.uuid || randomUUID();
 
   // 6. 插入数据库
-  /*
-  const result = await sql`
-    INSERT INTO scheduled_messages (
-      user_id,
-      uuid,
-      contact_name,
-      avatar_url,
-      message_type,
-      message_subtype,
-      user_message,
-      next_send_at,
-      recurrence_type,
-      api_url,
-      api_key,
-      primary_model,
-      complete_prompt,
-      push_subscription,
-      status,
-      retry_count,
-      metadata,
-      created_at,
-      updated_at
-    ) VALUES (
-      ${userId},
-      ${taskUuid},
-      ${payload.contactName},
-      ${payload.avatarUrl || null},
-      ${payload.messageType},
-      ${payload.messageSubtype || 'chat'},
-      ${encryptedUserMessage},
-      ${payload.firstSendTime},
-      ${payload.recurrenceType || 'none'},
-      ${payload.apiUrl || null},
-      ${encryptedApiKey},
-      ${payload.primaryModel || null},
-      ${encryptedPrompt},
-      ${JSON.stringify(payload.pushSubscription)},
-      'pending',
-      0,
-      ${JSON.stringify(payload.metadata || {})},
-      NOW(),
-      NOW()
-    )
-    RETURNING id, uuid, contact_name, next_send_at, status, created_at
-  `;
-  */
 
-  // 模拟数据库响应（实际项目中替换为真实数据库调用）
-  const mockResult = {
-    id: 12345,
-    uuid: taskUuid,
-    contact_name: payload.contactName,
-    next_send_at: payload.firstSendTime,
-    status: 'pending',
-    created_at: new Date().toISOString()
-  };
 
-  console.log('[schedule-message] New task created:', {
-    taskId: mockResult.id,
-    contactName: mockResult.contact_name,
-    nextSendAt: mockResult.next_send_at
-  });
+// 6. 插入数据库
+const result = await sql`
+  INSERT INTO scheduled_messages (
+    user_id,
+    uuid,
+    message_type,
+    user_message,
+    next_send_at,
+    push_subscription,
+    status,
+    created_at,
+    updated_at
+  ) VALUES (
+    ${userId},
+    ${taskUuid},
+    ${payload.messageType},
+    ${encryptedUserMessage},
+    ${payload.scheduled_at},
+    ${JSON.stringify(payload.subscription)},
+    'pending',
+    NOW(),
+    NOW()
+  )
+  RETURNING id, uuid, next_send_at, status, created_at
+`;
 
-  // 7. 返回成功响应
-  return {
+const dbResult = result.rows[0];
+
+console.log('[schedule-message] New task created:', {
+    taskId: dbResult.id,
+    nextSendAt: dbResult.next_send_at
+});
+
+// 7. 返回成功响应
+return {
     status: 201,
     body: {
-      success: true,
-      data: {
-        id: mockResult.id,
-        uuid: mockResult.uuid,
-        contactName: mockResult.contact_name,
-        nextSendAt: mockResult.next_send_at,
-        status: mockResult.status,
-        createdAt: mockResult.created_at
-      }
+        success: true,
+        data: {
+            id: dbResult.id,
+            uuid: dbResult.uuid,
+            nextSendAt: dbResult.next_send_at,
+            status: dbResult.status,
+            createdAt: dbResult.created_at
+        }
     }
-  };
-}
-
+};
 // Node.js handler (Vercel)
 module.exports = async function(req, res) {
   // 哼，这就是我加的“前台接线员”，专门处理OPTIONS电话
