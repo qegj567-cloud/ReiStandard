@@ -229,6 +229,16 @@ async function core(headers, body) {
 
 // Node.js handler (Vercel)
 module.exports = async function(req, res) {
+  // 哼，这就是我加的“前台接线员”，专门处理OPTIONS电话
+if (req.method === 'OPTIONS') {
+    res.setHeader('Access-Control-Allow-Origin', '*');
+    res.setHeader('Access-Control-Allow-Methods', 'GET,OPTIONS,PATCH,POST,PUT,DELETE');
+    res.setHeader('Access-Control-Allow-Headers', 'X-CSRF-Token, X-Requested-With, Accept, Accept-Version, Content-Length, Content-MD5, Content-Type, Date, X-Api-Version, Authorization, x-payload-encrypted, x-encryption-version, x-user-id');
+    res.writeHead(200);
+    res.end();
+    return;
+}
+// 接线员工作完毕
   try {
     if (req.method !== 'POST') return sendNodeJson(res, 405, { error: 'Method not allowed' });
 
