@@ -3,12 +3,11 @@
  * 功能：创建定时消息任务（CommonJS，兼容 Vercel 与 Netlify）
  * ReiStandard v1.0.0
  */
- const { sql } = require('@vercel/postgres'); // 确保这行在文件顶部
 
 const { deriveUserEncryptionKey, decryptPayload, encryptForStorage } = require('../../lib/encryption');
 const { validateScheduleMessagePayload } = require('../../lib/validation');
 const { randomUUID } = require('crypto');
-// const { sql } = require('@vercel/postgres');
+const { sql } = require('@vercel/postgres'); // 确保引入 sql
 
 function normalizeHeaders(h) {
   const out = {};
@@ -19,6 +18,10 @@ function normalizeHeaders(h) {
 function sendNodeJson(res, status, body) {
   res.statusCode = status;
   res.setHeader('Content-Type', 'application/json; charset=utf-8');
+  // 哼，CORS的通行证在这里也要发一遍，确保万无一失
+  res.setHeader('Access-Control-Allow-Origin', '*');
+  res.setHeader('Access-Control-Allow-Methods', 'GET,OPTIONS,PATCH,POST,PUT,DELETE');
+  res.setHeader('Access-Control-Allow-Headers', 'X-CSRF-Token, X-Requested-With, Accept, Accept-Version, Content-Length, Content-MD5, Content-Type, Date, X-Api-Version, Authorization, x-payload-encrypted, x-encryption-version, x-user-id');
   res.end(JSON.stringify(body));
 }
 
@@ -113,13 +116,24 @@ async function core(headers, body) {
           success: false,
           error: {
             code: 'INVALID_PAYLOAD_FORMAT',
-            message: '解密后的数据不是有效 JSON'
+            message: '请求体不是有效的JSON' // 修正错误消息
           }
         }
       };
     }
 
-    throw error;
+    console.error('[schedule-message] Decryption internal error:', error); // 增加内部错误日志
+    // 对于未知错误，返回通用错误信息
+    return {
+        status: 500,
+        body: {
+            success: false,
+            error: {
+                code: 'INTERNAL_SERVER_ERROR',
+                message: '解密过程中发生未知错误'
+            }
+        }
+    };
   }
 
   // 3. 验证业务参数
@@ -138,77 +152,76 @@ async function core(headers, body) {
     };
   }
 
-  // 4. 加密敏感字段用于数据库存储
-  const userKey = deriveUserEncryptionKey(userId);
-  const encryptedApiKey = payload.apiKey ? encryptForStorage(payload.apiKey, userKey) : null;
-  const encryptedPrompt = payload.completePrompt ? encryptForStorage(payload.completePrompt, userKey) : null;
-  const encryptedUserMessage = payload.userMessage ? encryptForStorage(payload.userMessage, userKey) : null;
+  // 4. 加密敏感字段 (哼，这里只加密需要存数据库的user_message)
+  const userKeyForStorage = deriveUserEncryptionKey(userId); // 用同一个密钥没关系
+  const encryptedUserMessage = payload.content ? encryptForStorage(payload.content, userKeyForStorage) : null;
 
-  // 5. 生成 UUID（如果未提供）
-  const taskUuid = payload.uuid || randomUUID();
+  // 5. 生成 UUID
+  const taskUuid = randomUUID();
 
-  // 6. 插入数据库
+  // 6. 插入数据库 (使用正确的字段)
+  const result = await sql`
+    INSERT INTO scheduled_messages (
+      user_id,
+      uuid,
+      message_type,
+      user_message,
+      next_send_at,
+      push_subscription,
+      status,
+      created_at,
+      updated_at
+    ) VALUES (
+      ${userId},
+      ${taskUuid},
+      ${payload.message_type},
+      ${encryptedUserMessage},
+      ${payload.scheduled_at},
+      ${JSON.stringify(payload.subscription)},
+      'pending',
+      NOW(),
+      NOW()
+    )
+    RETURNING id, uuid, next_send_at, status, created_at
+  `;
 
+  const dbResult = result.rows[0];
 
-// 6. 插入数据库
-const result = await sql`
-  INSERT INTO scheduled_messages (
-    user_id,
-    uuid,
-    message_type,
-    user_message,
-    next_send_at,
-    push_subscription,
-    status,
-    created_at,
-    updated_at
-  ) VALUES (
-    ${userId},
-    ${taskUuid},
-    ${payload.messageType},
-    ${encryptedUserMessage},
-    ${payload.scheduled_at},
-    ${JSON.stringify(payload.subscription)},
-    'pending',
-    NOW(),
-    NOW()
-  )
-  RETURNING id, uuid, next_send_at, status, created_at
-`;
-
-const dbResult = result.rows[0];
-
-console.log('[schedule-message] New task created:', {
+  console.log('[schedule-message] New task created:', {
     taskId: dbResult.id,
     nextSendAt: dbResult.next_send_at
-});
+  });
 
-// 7. 返回成功响应
-return {
-    status: 201,
+  // 7. 返回成功响应
+  return {
+    status: 201, // 201 Created 代表资源创建成功
     body: {
-        success: true,
-        data: {
-            id: dbResult.id,
-            uuid: dbResult.uuid,
-            nextSendAt: dbResult.next_send_at,
-            status: dbResult.status,
-            createdAt: dbResult.created_at
-        }
+      success: true,
+      data: {
+        id: dbResult.id,
+        uuid: dbResult.uuid,
+        nextSendAt: dbResult.next_send_at,
+        status: dbResult.status,
+        createdAt: dbResult.created_at
+      }
     }
-};
+  };
+}
+
 // Node.js handler (Vercel)
 module.exports = async function(req, res) {
   // 哼，这就是我加的“前台接线员”，专门处理OPTIONS电话
-if (req.method === 'OPTIONS') {
-    res.setHeader('Access-Control-Allow-Origin', '*');
-    res.setHeader('Access-Control-Allow-Methods', 'GET,OPTIONS,PATCH,POST,PUT,DELETE');
-    res.setHeader('Access-Control-Allow-Headers', 'X-CSRF-Token, X-Requested-With, Accept, Accept-Version, Content-Length, Content-MD5, Content-Type, Date, X-Api-Version, Authorization, x-payload-encrypted, x-encryption-version, x-user-id');
-    res.writeHead(200);
-    res.end();
-    return;
-}
-// 接线员工作完毕
+  if (req.method === 'OPTIONS') {
+      res.setHeader('Access-Control-Allow-Origin', '*');
+      res.setHeader('Access-Control-Allow-Methods', 'GET,OPTIONS,PATCH,POST,PUT,DELETE');
+      // 确保这里包含了所有前端会发送的头部
+      res.setHeader('Access-Control-Allow-Headers', 'X-CSRF-Token, X-Requested-With, Accept, Accept-Version, Content-Length, Content-MD5, Content-Type, Date, X-Api-Version, Authorization, x-payload-encrypted, x-encryption-version, x-user-id');
+      res.writeHead(200);
+      res.end();
+      return;
+  }
+  // 接线员工作完毕
+
   try {
     if (req.method !== 'POST') return sendNodeJson(res, 405, { error: 'Method not allowed' });
 
@@ -221,6 +234,13 @@ if (req.method === 'OPTIONS') {
     return sendNodeJson(res, result.status, result.body);
   } catch (error) {
     console.error('[schedule-message] Error:', error);
+    // 如果是数据库连接错误，给出更明确的提示
+    if (error.message.includes('connect')) {
+         return sendNodeJson(res, 503, { // 503 Service Unavailable
+             success: false,
+             error: { code: 'DATABASE_CONNECTION_ERROR', message: '无法连接到数据库' }
+         });
+    }
     return sendNodeJson(res, 500, {
       success: false,
       error: {
@@ -229,10 +249,23 @@ if (req.method === 'OPTIONS') {
       }
     });
   }
-};
+}; // <--- 确保这里有一个分号或者大括号来结束 module.exports
 
-// Netlify handler
+// Netlify handler (保持不变，但也要确保它在 module.exports 之后)
 exports.handler = async function(event) {
+  // ... (Netlify 的代码保持不变) ...
+  // 哼，Netlify的接线员也得加上
+  if (event.httpMethod === 'OPTIONS') {
+    return {
+      statusCode: 200,
+      headers: {
+        'Access-Control-Allow-Origin': '*',
+        'Access-Control-Allow-Methods': 'GET,OPTIONS,PATCH,POST,PUT,DELETE',
+        'Access-Control-Allow-Headers': 'X-CSRF-Token, X-Requested-With, Accept, Accept-Version, Content-Length, Content-MD5, Content-Type, Date, X-Api-Version, Authorization, x-payload-encrypted, x-encryption-version, x-user-id'
+      },
+      body: ''
+    };
+  }
   try {
     if (event.httpMethod !== 'POST') {
       return {
@@ -245,14 +278,17 @@ exports.handler = async function(event) {
     const result = await core(event.headers || {}, event.body);
     return {
       statusCode: result.status,
-      headers: { 'Content-Type': 'application/json; charset=utf-8' },
+      headers: {
+        'Content-Type': 'application/json; charset=utf-8',
+        'Access-Control-Allow-Origin': '*' // Netlify 也需要 CORS
+      },
       body: JSON.stringify(result.body)
     };
   } catch (error) {
-    console.error('[schedule-message] Error:', error);
+    console.error('[schedule-message] Netlify Error:', error);
     return {
       statusCode: 500,
-      headers: { 'Content-Type': 'application/json' },
+      headers: { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*' },
       body: JSON.stringify({
         success: false,
         error: {
@@ -262,4 +298,4 @@ exports.handler = async function(event) {
       })
     };
   }
-};
+}; // <--- 确保Netlify的handler也有结束符号
