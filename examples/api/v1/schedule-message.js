@@ -184,7 +184,7 @@ const result = await sql`
     ${payload.avatarUrl || null}, 
     ${payload.messageType},
     ${encryptedUserMessage},
-    ${payload.scheduled_at},
+    ${payload.firstSendTime},
     ${JSON.stringify(payload.subscription)},
     'pending',
     NOW(),
