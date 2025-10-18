@@ -185,7 +185,7 @@ const result = await sql`
     ${payload.messageType},
     ${encryptedUserMessage},
     ${payload.firstSendTime},
-    ${JSON.stringify(payload.subscription)},
+    ${JSON.stringify(payload.pushSubscription)}
     'pending',
     NOW(),
     NOW()
