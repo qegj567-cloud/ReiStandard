@@ -1,6 +1,6 @@
 {
   "dependencies": {
-    "@neondatabase/serverless": "^0.9.1",
+    "@vercel/postgres": "^0.8.0",  
     "web-push": "^3.6.7"
   }
 }
