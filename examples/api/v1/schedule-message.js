@@ -170,7 +170,7 @@ const result = await sql`
     uuid,
     contact_name,
     avatar_url,
-    message_type,
+    messageType,
     user_message,
     next_send_at,
     push_subscription,
