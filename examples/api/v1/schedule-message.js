@@ -163,35 +163,35 @@ console.log("[Noir Debug Server] Decrypted Payload for Validation:", JSON.string
   // 5. 生成 UUID
   const taskUuid = randomUUID();
 
-  // 6. 插入数据库 (使用正确的字段)
-  const result = await sql`
-    INSERT INTO scheduled_messages (
-      user_id,
-      uuid,
-      contact_name,
-      avatar_url,
-      message_type,
-      user_message,
-      next_send_at,
-      push_subscription,
-      status,
-      created_at,
-      updated_at
-    ) VALUES (
-      ${userId},
-      ${taskUuid},
-      ${payload.contactName || '未知联系人'}, 
-      ${payload.avatarUrl || null},
-      ${payload.message_type},
-      ${encryptedUserMessage},
-      ${payload.scheduled_at},
-      ${JSON.stringify(payload.subscription)},
-      'pending',
-      NOW(),
-      NOW()
-    )
-    RETURNING id, uuid, next_send_at, status, created_at
-  `;
+// 确保 `INSERT INTO` 前面没有多余的制表符或空格！
+const result = await sql`
+  INSERT INTO scheduled_messages (
+    user_id,
+    uuid,
+    contact_name,
+    avatar_url,
+    message_type,
+    user_message,
+    next_send_at,
+    push_subscription,
+    status,
+    created_at,
+    updated_at
+  ) VALUES (
+    ${userId},
+    ${taskUuid},
+    ${payload.contactName || '未知联系人'},
+    ${payload.avatarUrl || null}, 
+    ${payload.message_type},
+    ${encryptedUserMessage},
+    ${payload.scheduled_at},
+    ${JSON.stringify(payload.subscription)},
+    'pending',
+    NOW(),
+    NOW()
+  )
+  RETURNING id, uuid, next_send_at, status, created_at
+`;
 
   const dbResult = result.rows[0];
 
