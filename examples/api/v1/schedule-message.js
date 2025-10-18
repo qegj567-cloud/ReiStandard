@@ -168,9 +168,7 @@ console.log("[Noir Debug Server] Decrypted Payload for Validation:", JSON.string
     INSERT INTO scheduled_messages (
       user_id,
       uuid,
-      // 👇 加上这行！
       contact_name,
-// 👇 加上这行！
       avatar_url,
       message_type,
       user_message,
@@ -182,9 +180,7 @@ console.log("[Noir Debug Server] Decrypted Payload for Validation:", JSON.string
     ) VALUES (
       ${userId},
       ${taskUuid},
-      // 👇 对应数据库字段，加上客户端发来的值！
-      ${payload.contactName || '未知联系人'}, // 👈 用 || '未知联系人' 确保 NOT NULL
-// 👇 avatar_url可以暂时放空或放 null，因为它没有 NOT NULL 约束
+      ${payload.contactName || '未知联系人'}, 
       ${payload.avatarUrl || null},
       ${payload.message_type},
       ${encryptedUserMessage},
