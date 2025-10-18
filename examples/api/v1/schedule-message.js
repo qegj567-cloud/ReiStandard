@@ -82,19 +82,19 @@ async function core(headers, body) {
     const encryptedBody = typeof body === 'string' ? JSON.parse(body) : body;
 
     // 验证加密数据格式
-    if (!encryptedBody.iv || !encryptedBody.authTag || !encryptedBody.encryptedData) {
-      return {
+    // 验证加密数据格式 (Noir's Fix: CBC模式没有authTag!)
+if (!encryptedBody.iv || !encryptedBody.encryptedData) {
+    return {
         status: 400,
         body: {
-          success: false,
-          error: {
-            code: 'INVALID_ENCRYPTED_PAYLOAD',
-            message: '加密数据格式错误'
-          }
+            success: false,
+            error: {
+                code: 'INVALID_ENCRYPTED_PAYLOAD',
+                message: '加密数据格式错误 (缺少 iv 或 encryptedData)' // 可以加个更明确的提示
+            }
         }
-      };
-    }
-
+    };
+}
     // 派生用户专属密钥并解密
     const userKey = deriveUserEncryptionKey(userId);
     payload = decryptPayload(encryptedBody, userKey);
