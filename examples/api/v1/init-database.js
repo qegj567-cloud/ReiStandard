@@ -74,21 +74,7 @@ exports.handler = async function(event) {
 
 async function handleGet(req, res) {
   try {
-    // 可选：添加简单的认证保护（推荐）
-    const authHeader = req.headers.authorization || '';
-    const expectedAuth = `Bearer ${process.env.INIT_SECRET || 'CHANGE_ME_IN_ENV'}`;
-
-    if (authHeader.trim() !== expectedAuth) {
-      res.statusCode = 401;
-      res.setHeader('Content-Type', 'application/json');
-      return res.end(JSON.stringify({
-        success: false,
-        error: {
-          code: 'UNAUTHORIZED',
-          message: '需要认证。请在请求头中添加: Authorization: Bearer {INIT_SECRET}'
-        }
-      }));
-    }
+    
 
     // 连接数据库
     const sql = neon(process.env.DATABASE_URL);
