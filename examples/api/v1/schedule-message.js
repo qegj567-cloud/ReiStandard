@@ -98,7 +98,7 @@ if (!encryptedBody.iv || !encryptedBody.encryptedData) {
     // 派生用户专属密钥并解密
     const userKey = deriveUserEncryptionKey(userId);
     payload = decryptPayload(encryptedBody, userKey);
-
+console.log("[Noir Debug Server] Decrypted Payload for Validation:", JSON.stringify(payload, null, 2)); // 打印解密后的完整内容
   } catch (error) {
     if (error.message.includes('auth') || error.message.includes('Unsupported state')) {
       return {
