@@ -233,7 +233,9 @@ module.exports = async function(req, res) {
     for await (const chunk of req) {
       body += chunk.toString();
     }
-
+// ▼▼▼ 把这行加进去 ▼▼▼
+        console.log("[Noir Debug Server] Received RAW Body:", body);
+        // ▲▲▲ 添加结束 ▲▲▲
     const result = await core(req.headers, body);
     return sendNodeJson(res, result.status, result.body);
   } catch (error) {
