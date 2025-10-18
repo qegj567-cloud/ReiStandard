@@ -27,7 +27,11 @@ function sendNodeJson(res, status, body) {
 
 async function core(headers, body) {
   const h = normalizeHeaders(headers);
-
+// ▼▼▼ 把这几行加进去 ▼▼▼
+  console.log("[Noir Debug Server] Received Headers:", JSON.stringify(h)); // 记录所有收到的头信息
+  const receivedUserId = h['x-user-id']; // 用小写读取
+  console.log("[Noir Debug Server] Received User ID for Decryption:", receivedUserId);
+  // ▲▲▲ 添加结束 ▲▲▲
   // 1. 验证加密头部
   const isEncrypted = h['x-payload-encrypted'] === 'true';
   const encryptionVersion = h['x-encryption-version'];
