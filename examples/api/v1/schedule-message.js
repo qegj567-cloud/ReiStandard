@@ -182,7 +182,7 @@ const result = await sql`
     ${taskUuid},
     ${payload.contactName || '未知联系人'},
     ${payload.avatarUrl || null}, 
-    ${payload.message_type},
+    ${payload.messageType},
     ${encryptedUserMessage},
     ${payload.scheduled_at},
     ${JSON.stringify(payload.subscription)},
