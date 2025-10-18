@@ -1,6 +1,7 @@
 {
   "dependencies": {
-    "@vercel/postgres": "^0.8.0",  
-    "web-push": "^3.6.7"
+    "@vercel/postgres": "^0.8.0",
+    "web-push": "^3.6.7",
+    "crypto-js": "^4.2.0"  
   }
 }
