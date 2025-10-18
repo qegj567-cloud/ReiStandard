@@ -183,7 +183,7 @@ async function handleGet(req, res) {
 
     for (const index of indexes) {
       try {
-        await sql(index.sql);
+        await sql.query(index.sql);
         console.log(`[init-database] ✅ 索引 ${index.name} 创建成功`);
         indexResults.push({
           name: index.name,
